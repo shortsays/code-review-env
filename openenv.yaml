@@ -1,0 +1,61 @@
+name: code-review-env
+version: "1.0.0"
+description: >
+  A real-world code review environment where an AI agent reviews Python
+  code snippets for bugs, security vulnerabilities, and style issues.
+author: Ankit
+tags: [openenv, code-review, security, software-engineering]
+
+tasks:
+  - id: easy
+    description: "Identify a ZeroDivisionError bug in a short function."
+    difficulty: easy
+    max_steps: 3
+    score_range: [0.0, 1.0]
+  - id: medium
+    description: "Find off-by-one error, mutation bug, and edge cases."
+    difficulty: medium
+    max_steps: 5
+    score_range: [0.0, 1.0]
+  - id: hard
+    description: "Security review: SQL injection, plaintext passwords, missing authorization."
+    difficulty: hard
+    max_steps: 8
+    score_range: [0.0, 1.0]
+
+observation_space:
+  type: object
+  fields:
+    task_id: {type: string}
+    code_snippet: {type: string}
+    instructions: {type: string}
+    step_number: {type: integer}
+    max_steps: {type: integer}
+    last_review: {type: string, nullable: true}
+    last_action_error: {type: string, nullable: true}
+    score_so_far: {type: float}
+    goal: {type: string}
+
+action_space:
+  type: object
+  fields:
+    review_text: {type: string, description: "The agent's full code review text"}
+
+reward:
+  type: float
+  range: [0.0, 1.0]
+  description: >
+    Graded by keyword matching against expected issues.
+    Bonus for actionable fixes and line references.
+    Partial progress rewarded per step.
+
+endpoints:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  health: GET /health
+
+baseline_scores:
+  easy: 0.72
+  medium: 0.61
+  hard: 0.54
