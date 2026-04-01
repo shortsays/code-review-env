@@ -3,10 +3,9 @@ import os
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from env import CodeReviewEnv, CodeReviewAction
-
+from fastapi.responses import RedirectResponse
 
 app = FastAPI(title="CodeReviewEnv", version="1.0.0")
 app.add_middleware(
@@ -25,6 +24,7 @@ class ResetRequest(BaseModel):
 
 class StepRequest(BaseModel):
     review_text: str
+
 
 
 @app.get("/", include_in_schema=False)
