@@ -25,17 +25,6 @@ pinned: false
 - **Live on Hugging Face**: Deployed at [shortsays/code-review-env](https://huggingface.co/spaces/shortsays/code-review-env)
 - **Baseline Agent**: `inference.py` with OpenAI client + structured START/STEP/END logging
 
-## 🏗️ Architecture
-env.py → Core environment, 3 tasks, grader logic
-server.py → FastAPI app with all OpenEnv endpoints
-inference.py → Baseline agent using OpenAI client
-Dockerfile → Container setup for Hugging Face Spaces
-openenv.yaml → Environment specification (OpenEnv format)
-pyproject.toml → Python project metadata
-requirements.txt → Python dependencies
-test_env.py → Local validation tests
-validate-submission.sh → Submission validator script
-
 
 ## 🏗️ Architecture
 
