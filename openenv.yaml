@@ -1,0 +1,15 @@
+name: code-review-env
+version: 1.0.0
+tasks:
+  - id: easy
+    description: "Simple code review task"
+  - id: medium  
+    description: "Medium code review task"
+  - id: hard
+    description: "Complex code review task"
+action_space:
+  review_text: string
+observation_space:
+  feedback: string
+  score: number
+  issues: array
