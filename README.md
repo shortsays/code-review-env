@@ -37,15 +37,19 @@ test_env.py → Local validation tests
 validate-submission.sh → Submission validator script
 
 
-## 🔌 API Endpoints
+## 🏗️ Architecture
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check — returns status, env name, version |
-| `/reset` | POST | Start a new task episode (easy / medium / hard) |
-| `/step` | POST | Submit a code review text and get reward + feedback |
-| `/state` | GET | Get current environment state and history |
-| `/docs` | GET | Swagger UI — interactive API documentation |
+| File | Description |
+|------|-------------|
+| `env.py` | Core environment, 3 tasks, grader logic |
+| `server.py` | FastAPI app with all OpenEnv endpoints |
+| `inference.py` | Baseline agent using OpenAI client |
+| `Dockerfile` | Container setup for Hugging Face Spaces |
+| `openenv.yaml` | Environment specification (OpenEnv format) |
+| `pyproject.toml` | Python project metadata |
+| `requirements.txt` | Python dependencies |
+| `test_env.py` | Local validation tests |
+| `validate-submission.sh` | Submission validator script |
 
 ### Example Usage
 
