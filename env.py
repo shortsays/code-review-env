@@ -20,7 +20,7 @@ class CodeReviewAction(BaseModel):
 
 
 class CodeReviewReward(BaseModel):
-    value: float = Field(description="Reward for this step (0.01 - 0.95)")
+    value: float = Field(description="Reward for this step strictly between 0 and 1")
     breakdown: dict[str, float] = Field(description="Score breakdown by category")
     feedback: str = Field(description="Grader feedback on the review")
 
@@ -126,22 +126,27 @@ def grade_review(task_id: str, review_text: str) -> CodeReviewReward:
 
     for issue_key, keywords in expected.items():
         detected = any(kw in review_lower for kw in keywords)
-        breakdown[issue_key] = 1.0 if detected else 0.0
+        breakdown[issue_key] = 0.8 if detected else 0.1
         if detected:
             found += 1
 
-    base_score = found / total if total > 0 else 0.0
-    length_bonus = min(0.05, len(review_text) / 2000)
+    # base score: never 0.0 or 1.0 by design
+    base_score = 0.05 + (found / total) * 0.75 if total > 0 else 0.05
+
+    length_bonus = min(0.04, len(review_text) / 3000)
+
     has_fix = any(w in review_lower for w in ["fix", "replace", "instead", "use", "should", "recommend"])
-    fix_bonus = 0.04 if has_fix else 0.0
+    fix_bonus = 0.03 if has_fix else 0.0
+
     has_line_ref = any(w in review_lower for w in ["line", "l.", "ln", "row", "function"])
-    line_bonus = 0.04 if has_line_ref else 0.0
+    line_bonus = 0.03 if has_line_ref else 0.0
 
     raw_score = base_score + length_bonus + fix_bonus + line_bonus
 
-    total_score = max(0.01, min(0.95, raw_score))
+    # STRICTLY between 0 and 1 — never 0.0, never 1.0
+    total_score = max(0.05, min(0.92, raw_score))
 
-    missed = [k for k, v in breakdown.items() if v == 0.0]
+    missed = [k for k, v in breakdown.items() if v == 0.1]
     feedback_parts = []
     if missed:
         feedback_parts.append(f"Missed issues: {', '.join(missed)}.")
@@ -181,7 +186,12 @@ class CodeReviewEnv:
         self._last_review = None
         self._last_error = None
         self._history = []
-        return {"observation": self._build_observation(), "done": False, "reward": 0.0, "info": {}}
+        return {
+            "observation": self._build_observation(),
+            "done": False,
+            "reward": 0.0,
+            "info": {}
+        }
 
     def step(self, action) -> dict:
         if self._done:
@@ -202,6 +212,7 @@ class CodeReviewEnv:
                     "done": False,
                     "info": {"error": str(e)}
                 }
+
         self._last_error = None
         self._step_num += 1
         self._last_review = action.review_text
@@ -217,7 +228,8 @@ class CodeReviewEnv:
             "feedback": reward_obj.feedback,
         })
 
-        if reward_obj.value >= 0.94 or self._step_num >= self._task["max_steps"]:
+        # done when score hits 0.90+ or max steps reached
+        if reward_obj.value >= 0.90 or self._step_num >= self._task["max_steps"]:
             self._done = True
 
         return {
