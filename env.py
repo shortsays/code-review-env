@@ -20,7 +20,7 @@ class CodeReviewAction(BaseModel):
 
 
 class CodeReviewReward(BaseModel):
-    value: float = Field(description="Reward for this step (0.0 - 1.0)")
+    value: float = Field(description="Reward for this step (0.01 - 0.95)")
     breakdown: dict[str, float] = Field(description="Score breakdown by category")
     feedback: str = Field(description="Grader feedback on the review")
 
@@ -33,6 +33,7 @@ def divide_numbers(a, b):
     """Divide a by b and return the result."""
     result = a / b
     return result
+
 
 print(divide_numbers(10, 0))
 print(divide_numbers(10, 2))
@@ -57,6 +58,7 @@ def get_top_scores(scores, n):
     average = total / n
     return top, average
 
+
 data = [55, 92, 78, 45, 88, 60, 95]
 print(get_top_scores(data, 3))
 print(get_top_scores([], 3))
@@ -77,6 +79,7 @@ print(get_top_scores(data, 0))
         "code": '''\
 import sqlite3
 
+
 def authenticate_user(username, password, db_path="users.db"):
     """Authenticate user and return their data if credentials match."""
     conn = sqlite3.connect(db_path)
@@ -89,6 +92,7 @@ def authenticate_user(username, password, db_path="users.db"):
         return {"authenticated": True, "user_id": user[0], "role": user[2]}
     conn.close()
     return {"authenticated": False}
+
 
 def update_user_email(user_id, new_email, requestor_id):
     """Update a user\'s email address."""
@@ -127,12 +131,15 @@ def grade_review(task_id: str, review_text: str) -> CodeReviewReward:
             found += 1
 
     base_score = found / total if total > 0 else 0.0
-    length_bonus = min(0.1, len(review_text) / 2000)
+    length_bonus = min(0.05, len(review_text) / 2000)
     has_fix = any(w in review_lower for w in ["fix", "replace", "instead", "use", "should", "recommend"])
-    fix_bonus = 0.05 if has_fix else 0.0
+    fix_bonus = 0.04 if has_fix else 0.0
     has_line_ref = any(w in review_lower for w in ["line", "l.", "ln", "row", "function"])
-    line_bonus = 0.05 if has_line_ref else 0.0
-    total_score = min(1.0, base_score + length_bonus + fix_bonus + line_bonus)
+    line_bonus = 0.04 if has_line_ref else 0.0
+
+    raw_score = base_score + length_bonus + fix_bonus + line_bonus
+
+    total_score = max(0.01, min(0.95, raw_score))
 
     missed = [k for k, v in breakdown.items() if v == 0.0]
     feedback_parts = []
@@ -144,7 +151,11 @@ def grade_review(task_id: str, review_text: str) -> CodeReviewReward:
         feedback_parts.append("Tip: Include fix suggestions for higher score.")
     feedback = " ".join(feedback_parts) if feedback_parts else "Good review."
 
-    return CodeReviewReward(value=round(total_score, 4), breakdown=breakdown, feedback=feedback)
+    return CodeReviewReward(
+        value=round(total_score, 4),
+        breakdown=breakdown,
+        feedback=feedback
+    )
 
 
 class CodeReviewEnv:
@@ -174,29 +185,41 @@ class CodeReviewEnv:
 
     def step(self, action) -> dict:
         if self._done:
-            return {"observation": self._build_observation(), "reward": 0.0, "done": True,
-                    "info": {"error": "Episode already done. Call reset()."}}
+            return {
+                "observation": self._build_observation(),
+                "reward": 0.0,
+                "done": True,
+                "info": {"error": "Episode already done. Call reset()."}
+            }
         if isinstance(action, dict):
             try:
                 action = CodeReviewAction(**action)
             except Exception as e:
                 self._last_error = str(e)
-                return {"observation": self._build_observation(), "reward": 0.0,
-                        "done": False, "info": {"error": str(e)}}
+                return {
+                    "observation": self._build_observation(),
+                    "reward": 0.0,
+                    "done": False,
+                    "info": {"error": str(e)}
+                }
         self._last_error = None
         self._step_num += 1
         self._last_review = action.review_text
         reward_obj = grade_review(self._task_id, action.review_text)
+
         step_reward = max(0.0, reward_obj.value - self._cumulative_reward)
         self._cumulative_reward = max(self._cumulative_reward, reward_obj.value)
+
         self._history.append({
             "step": self._step_num,
             "reward": reward_obj.value,
             "breakdown": reward_obj.breakdown,
             "feedback": reward_obj.feedback,
         })
-        if reward_obj.value >= 0.99 or self._step_num >= self._task["max_steps"]:
+
+        if reward_obj.value >= 0.94 or self._step_num >= self._task["max_steps"]:
             self._done = True
+
         return {
             "observation": self._build_observation(),
             "reward": round(step_reward, 4),
@@ -204,7 +227,7 @@ class CodeReviewEnv:
             "info": {
                 "grader_feedback": reward_obj.feedback,
                 "breakdown": reward_obj.breakdown,
-                "cumulative_reward": self._cumulative_reward,
+                "cumulative_reward": round(self._cumulative_reward, 4),
             },
         }
 
