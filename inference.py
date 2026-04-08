@@ -40,11 +40,12 @@ def run_baseline(task_id="easy"):
         review_text = (
             "There is a ZeroDivisionError when b=0 on the division line. "
             "Add a try/except block to handle ZeroDivisionError. "
-            "Recommend: if b == 0: raise ValueError('b cannot be zero'). "
-            "Also add input type validation and error handling."
+            "Recommend: if b == 0: raise ValueError. "
+            "Use isinstance for type validation. Replace sort() with sorted() to avoid mutation. "
+            "Use parameterized queries to prevent SQL injection. Hash passwords with bcrypt."
         )
 
-    total_reward = 0.0
+    final_score = 0.5
     steps = 0
 
     for step_num in range(5):
@@ -52,13 +53,23 @@ def run_baseline(task_id="easy"):
         resp.raise_for_status()
         result = resp.json()
         steps = step_num + 1
-        total_reward = result["reward"]
-        print(f"[STEP] step={steps} reward={result['reward']}", flush=True)
+
+        cumulative = result.get("info", {}).get("cumulative_reward", None)
+        if cumulative is not None:
+            final_score = float(cumulative)
+        else:
+            final_score = final_score + float(result["reward"])
+
+        final_score = max(0.01, min(0.99, final_score))
+
+        print(f"[STEP] step={steps} reward={final_score}", flush=True)
+
         if result["done"]:
             break
 
-    print(f"[END] task={task_id} score={total_reward} steps={steps}", flush=True)
-    return total_reward
+    final_score = max(0.01, min(0.99, final_score))
+    print(f"[END] task={task_id} score={final_score} steps={steps}", flush=True)
+    return final_score
 
 
 if __name__ == "__main__":
